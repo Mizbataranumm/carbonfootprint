@@ -7,6 +7,7 @@ interface HeaderProps {
   onBenchmarkChange: (key: keyof typeof BENCHMARKS) => void;
   onResetData: () => void;
   onOpenAdvisor: () => void;
+  onOpenTechModal: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -14,6 +15,7 @@ export const Header: React.FC<HeaderProps> = ({
   onBenchmarkChange,
   onResetData,
   onOpenAdvisor,
+  onOpenTechModal,
 }) => {
   return (
     <header className="border-b border-[#e2e8e3] bg-white sticky top-0 z-30 shadow-xs">
@@ -71,6 +73,17 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              id="header-tech-stack-btn"
+              onClick={onOpenTechModal}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0] hover:bg-[#dcfce7] transition-colors cursor-pointer"
+              title="View AI, ML, NLP & LLM Technology Architecture"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#10b981]" />
+              <span className="hidden sm:inline">AI / ML Tech Stack</span>
+              <span className="sm:hidden">AI Tech</span>
+            </button>
+
             <button
               id="desktop-advisor-btn"
               onClick={onOpenAdvisor}

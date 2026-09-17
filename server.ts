@@ -177,6 +177,109 @@ Provide an accurate, evidence-based estimate referencing EPA/IPCC/DEFRA emission
   }
 });
 
+// 4. Dedicated Food & Dietary Pattern Carbon Estimator
+// Considers meat production, agricultural footprint, and food miles logistics
+app.post('/api/estimate-food', async (req, res) => {
+  try {
+    const { foodInput, inputType, sourcingOption } = req.body;
+    if (!foodInput || typeof foodInput !== 'string') {
+      res.status(400).json({ error: 'Food or dietary pattern input is required.' });
+      return;
+    }
+
+    const ai = getGeminiClient();
+
+    const prompt = `You are an expert Agri-Food Lifecycle Assessment (LCA) Scientist.
+Analyze the following food consumption input:
+- Input text: "${foodInput}"
+- Input type: "${inputType || 'single_meal'}" (can be 'single_meal' or 'dietary_pattern')
+- Sourcing context: "${sourcingOption || 'average'}" (can be 'local_seasonal', 'average_commercial', or 'imported_air_freight')
+
+Compute the carbon footprint in kg CO2e based on empirical peer-reviewed LCA meta-analyses (such as Poore & Nemecek 2018 / IPCC).
+Decompose the total emissions into 3 specific scientific components:
+1. meatProductionKg: emissions strictly attributable to livestock farming, enteric fermentation (methane CH4), and manure management. (0 if plant-based)
+2. agricultureKg: emissions from crop cultivation, synthetic nitrogen fertilizers, irrigation, processing, and land management.
+3. foodMilesKg: emissions from supply chain freight, refrigerated transport, and distribution logistics.
+
+If this is a dietary pattern (e.g. "mostly vegetarian", "eat red meat daily", "vegan"), estimate the average DAILY carbon footprint (kg CO2e per day).
+If this is a specific meal (e.g. "200g ribeye steak with asparagus and fries"), estimate the footprint for that SINGLE MEAL.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            activityName: {
+              type: Type.STRING,
+              description: 'Clear title describing the meal or dietary pattern',
+            },
+            totalCo2Kg: {
+              type: Type.NUMBER,
+              description: 'Total greenhouse gas emissions in kg CO2e',
+            },
+            meatProductionKg: {
+              type: Type.NUMBER,
+              description: 'Emissions from meat/livestock rearing & enteric fermentation (kg CO2e)',
+            },
+            agricultureKg: {
+              type: Type.NUMBER,
+              description: 'Emissions from crop farming, fertilizer, processing (kg CO2e)',
+            },
+            foodMilesKg: {
+              type: Type.NUMBER,
+              description: 'Emissions from transport, freight and distribution logistics (kg CO2e)',
+            },
+            period: {
+              type: Type.STRING,
+              description: '"daily_pattern" or "single_meal"',
+            },
+            dietClassification: {
+              type: Type.STRING,
+              description: 'e.g., Vegan, Vegetarian, Pescatarian, Flexitarian, Average Omnivore, High Meat',
+            },
+            scientificRationale: {
+              type: Type.STRING,
+              description: '2-3 sentences explaining the enteric methane, agricultural land use, or transport intensity behind this figure',
+            },
+            lowerCarbonSwaps: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: '2-3 actionable, high-taste lower-carbon substitutions',
+            },
+          },
+          required: [
+            'activityName',
+            'totalCo2Kg',
+            'meatProductionKg',
+            'agricultureKg',
+            'foodMilesKg',
+            'period',
+            'dietClassification',
+            'scientificRationale',
+            'lowerCarbonSwaps',
+          ],
+        },
+      },
+    });
+
+    const text = response.text?.trim() || '{}';
+    const parsed = JSON.parse(text);
+
+    res.json({
+      success: true,
+      data: parsed,
+    });
+  } catch (error: any) {
+    console.error('Estimate food error:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to estimate food carbon footprint.',
+    });
+  }
+});
+
 // Vite & Static Asset Handling
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
